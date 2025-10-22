@@ -13,34 +13,7 @@ from pytorch_grad_cam import (
   FinerCAM
 )
 
-class Model(nn.Module):
-    def __init__(self, checkpoint=None):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(12544, 128)
-        self.fc2 = nn.Linear(128, 10)
-
-
-        if checkpoint is not None: self.load_state_dict(torch.load(checkpoint, weights_only=True))
-            
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        output = F.log_softmax(x, dim=1)
-        return output
+from resnet import resnet18
 
 def CIFAR10(path, batch_size=1):
     transform=transforms.Compose([
@@ -62,13 +35,14 @@ def main():
       show_cam_on_image, deprocess_image, preprocess_image
   )
 
+  device = "cpu"
   # Model and Target Layers
-  model = Model("model.pt")
+  model = resnet18(device=device).to(device)
   model.eval()
-  target_layers = [model.conv1, model.conv2]
+  target_layers = [model.conv1, model.layer1, model.layer2, model.layer3, model.layer4]
 
   # Data and Targets
-  data = CIFAR10("/data/DATASETS/CIFAR10", batch_size = 8)
+  data = CIFAR10("/data/DATASETS/CIFAR10", batch_size = 16)
 
   idx = 2
   for i, (input_tensor, label) in enumerate(data): 
@@ -79,7 +53,7 @@ def main():
 
   # GradCAM
   # algo = GradCAM
-  # algo = ScoreCAM
+  algo = ScoreCAM
   # algo = FullGrad
   # algo = HiResCAM
   # algo = GradCAMPlusPlus
